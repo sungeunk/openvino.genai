@@ -176,8 +176,14 @@ int main(int argc, char **argv) {
     ov::preprocess::PrePostProcessor p3(model);
     p3.input("input_ids").tensor().set_element_type(ov::element::i32);  // cast to the type of tokenizer's output
     p3.input("attention_mask").tensor().set_element_type(ov::element::i32);
+    // Change input past key value and output present key value with FP16
+    for (size_t idx = 1; idx < inputs.size() - 1; ++idx) {
+	    p3.input(idx).tensor().set_element_type(ov::element::f16);
+	    p3.output(idx).tensor().set_element_type(ov::element::f16);
+    }
+
     model = p3.build();
-    std::string modifiled_file = std::regex_replace(args.model_path, std::regex("openvino_model"), "modified_openvino_model"); // replace 'def' -> 'klm'
+    std::string modifiled_file = std::regex_replace(args.model_path, std::regex("openvino_model"), "modified_openvino_model");
     std::cout << "Save modified model in " << modifiled_file << "\n";
     ov::serialize(model, modifiled_file);
     //inputs = model->inputs();
@@ -199,11 +205,6 @@ int main(int argc, char **argv) {
 #else
         auto model_inputs = compiled_model.inputs();
 #endif
-    /*
-    if (args.device.find("GPU") != std::string::npos) {
-	    model = nullptr; // Release system memory after model compiled on GPU
-    }
-    */
     int32_t out_token;
     int sentence_num = 0;
     std::vector<std::string> sentences;
