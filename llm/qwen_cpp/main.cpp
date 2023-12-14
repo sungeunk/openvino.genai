@@ -194,6 +194,7 @@ int main(int argc, char **argv) {
         // Compile modifiled model from disk to create model cache
         startTime = Time::now();
         ov::CompiledModel compiled_model = core.compile_model(modifiled_file, args.device, device_config);
+        duration_ms = get_duration_ms_until_now(startTime);
         std::cout << "Compile model and save model cache took: " << duration_ms << " ms" << std::endl;
         return 0;
     }
@@ -217,14 +218,13 @@ int main(int argc, char **argv) {
         for (std::string input_text : sentences) {
           // Build input prompt with prompt template
           std::cout << "******************************************* Text Sentence #" << sentence_num << " Start *******************************************\n";
-          std::cout << "Input text: " << input_text << "\n";
           startTime = Time::now();
           std::vector<int> input_ids = tokenizer->encode_history({input_text}, args.max_length);
           duration_ms = get_duration_ms_until_now(startTime);
           std::cout << "Input prompt encode using tokenizer took " << duration_ms << " ms" << std::endl;
-          std::string output_text = tokenizer->decode(input_ids);
-          std::cout << "Build input prompt with prompt template: \n" << output_text << "\n";
-    
+          //std::string output_text = tokenizer->decode(input_ids);
+          //std::cout << "Build input prompt with prompt template: \n" << output_text << "\n";
+          text_streamer->put(input_ids);
           // Prepare input tensor for first infer
           startTime = Time::now();
     
