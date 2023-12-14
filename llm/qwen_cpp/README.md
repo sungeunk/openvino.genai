@@ -34,11 +34,13 @@ cmake --build build -j --config Release
 ```
 
 ## Run on Windows
-Usage: `.\build\bin\Release\main.exe -m <openvino_model.xml> -t <qwen.tiktoken> -d <device>"`
-
-Example: `.\build\bin\Release\main.exe -m Qwen-7B-Chat-GPTQ_INT4_FP16-2K/openvino_model.xml -t Qwen-7B-Chat-GPTQ_INT4_FP16-2K/qwen.tiktoken -d CPU`
+### Convert kv cache to FP16
+`.\build\bin\Release\main.exe -m Qwen-7B-Chat-GPTQ_INT4_FP16-2K/openvino_model.xml -t Qwen-7B-Chat-GPTQ_INT4_FP16-2K/qwen.tiktoken -d OCL_GPU --convert_kv_fp16`
+### Compile modified model with FP16 kv cache
+`.\build\bin\Release\main.exe -m Qwen-7B-Chat-GPTQ_INT4_FP16-2K/modified_openvino_model.xml -t Qwen-7B-Chat-GPTQ_INT4_FP16-2K/qwen.tiktoken -d OCL_GPU`
 
 ## Run on Linux
-Usage: `./build/bin/main -m <openvino_model.xml> -t <qwen.tiktoken> -d <device>"`
-
-Example: `./build/bin/main -m Qwen-7B-Chat-GPTQ_INT4_FP16-2K/openvino_model.xml -t Qwen-7B-Chat-GPTQ_INT4_FP16-2K/qwen.tiktoken -d CPU`
+### Convert kv cache to FP16
+`./build/bin/main -m Qwen-7B-Chat-GPTQ_INT4_FP16-2K/openvino_model.xml -t Qwen-7B-Chat-GPTQ_INT4_FP16-2K/qwen.tiktoken -d OCL_GPU --convert_kv_fp16`
+### Compile modified model with FP16 kv cache
+`./build/bin/main -m Qwen-7B-Chat-GPTQ_INT4_FP16-2K/modified_openvino_model.xml -t Qwen-7B-Chat-GPTQ_INT4_FP16-2K/qwen.tiktoken -d OCL_GPU`
