@@ -134,6 +134,7 @@ int main(int argc, char **argv) {
 
     // Init OpenVINO Runtime
     ov::Core core;
+    std::cout << "Init OpenVINO with version: \n" << ov::get_openvino_version() << std::endl;
     ov::AnyMap device_config = {};
     if (args.device.find("CPU") != std::string::npos) {
         device_config[ov::cache_dir.name()] = "llm-cache";
