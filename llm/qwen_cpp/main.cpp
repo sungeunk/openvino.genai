@@ -6,10 +6,67 @@
 #include <openvino/runtime/properties.hpp>
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/pass/serialize.hpp"
-
+#include <regex>
+#include <iostream>
+#include <vector>
+#include <openvino/openvino.hpp>
+#include "openvino/op/ops.hpp"
+#include "openvino/opsets/opset13.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/serialize.hpp"
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
+
+class InsertSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("InsertSlice", "0");
+    explicit InsertSlice() {
+        auto label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>();
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+            auto root = std::dynamic_pointer_cast<ov::op::v1::Reshape>(m.get_match_root());
+            if (!root) {
+                return false;
+            }
+            ov::Output<ov::Node> root_output = m.get_match_value();
+            std::string root_name = root->get_friendly_name();
+            // (TODO) Find more general way to set target node name
+            std::string target_node_name = "__module.transformer/aten::view/Reshape_9473"; // Qwen NNCF INT4
+            //std::string target_node_name = "__module.transformer/aten::view/Reshape_16926"; // Qwen GPTQ INT4 (Local)
+            //std::string target_node_name = "__module.transformer/aten::view/Reshape_17246"; // Qwen GPTQ INT4 (CI)
+            if ((root_name).find(target_node_name) != std::string::npos) {
+	              std::cout << "Find target node: " << target_node_name << std::endl;
+                std::set<ov::Input<ov::Node>> consumers = root_output.get_target_inputs();
+                std::vector<int32_t> starts_v = {0, -1, 0};
+                std::vector<int32_t> stop_v = {1, -2, 4096};
+                std::cout << "Reshape output shape:" << root_output.get_partial_shape() << std::endl;
+                auto starts = ov::op::v0::Constant::create(ov::element::i32,
+                                                     ov::Shape{3},
+                                                     starts_v);
+                auto stop = ov::op::v0::Constant::create(ov::element::i32,
+                                                     ov::Shape{3},
+                                                     stop_v);
+                auto step = ov::op::v0::Constant::create(ov::element::i32,
+                                                     ov::Shape{3},
+                                                     {1,-1,1});
+                auto slice = std::make_shared<ov::opset13::Slice>(root,starts,stop,step); //data, starts, ends, steps
+                std::cout << "slice output shape" << slice->output(0).get_partial_shape() <<std::endl;
+                for (auto consumer : consumers) {
+                    consumer.replace_source_output(slice->output(0));
+                }
+                register_new_node(slice);
+            }
+            return true;
+        };
+        // Register pattern with Parameter operation as a pattern root node
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(label, "InsertSlice");
+        // Register Matcher
+        register_matcher(m, callback);
+    }
+};
 
 const std::vector<std::string> english_sentences =
 {
@@ -189,6 +246,9 @@ int main(int argc, char **argv) {
         }
     
         model = p3.build();
+        ov::pass::Manager manager;
+        manager.register_pass<InsertSlice>();
+        manager.run_passes(model);
         std::string modifiled_file = std::regex_replace(args.model_path, std::regex("openvino_model"), "modified_openvino_model");
         std::cout << "Save modified model in " << modifiled_file << "\n";
         ov::serialize(model, modifiled_file);
@@ -246,13 +306,14 @@ int main(int argc, char **argv) {
           std::cout << "First inference took " << duration_ms << " ms" << std::endl;
     
           // Get first inference results
+          std::cout << "Check logits shape: " << ireq.get_tensor("logits").get_shape() << "\n";
           size_t vocab_size = ireq.get_tensor("logits").get_shape().back();
-          float* logits = ireq.get_tensor("logits").data<float>() + (input_ids.size() - 1) * vocab_size;
+          //float* logits = ireq.get_tensor("logits").data<float>() + (input_ids.size() - 1) * vocab_size;
+	        float* logits = ireq.get_tensor("logits").data<float>();
           out_token = int32_t(std::max_element(logits, logits + vocab_size) - logits);
-          if (text_streamer) {
+	        if (text_streamer) {
             text_streamer->put({out_token});
           }
-    
           ireq.get_tensor("input_ids").set_shape({BATCH_SIZE, 1});
           total_time = 0;
           int count = 1;
