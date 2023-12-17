@@ -21,44 +21,91 @@
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
+/*@brief Insert slice transformation matches following graph, start from logits (Results) to search along root->parent-> grandparent node,
+ * then insert slice between Reshape (grandparent node) and Matmul to keep only last dim of matmul first input, first input shape reduced
+ * from [1, seq_len, 4096] to [1, 1,4096]. Therefore, after graph transformation, we can reduce matmul computation
+ * from [1, seq_len, 4096] * [1, 4096, 151936] = [1, seq_len, 151936] to [1,1,4096]*[4096,151936] = [1,1,151936]
+ *
+ * Original graph
+ *         +----------+            +----------+
+ *         |  Reshape |            | Constant |
+ *         +----------+            +----------+
+ *              |                       |
+ *              -----------    ----------
+ *                        |    |
+ *                        v    v
+ *                      +--------+
+ *                      | MatMul |
+ *                      +--------+
+ *                          |
+ *                          v
+ *                     +----------+
+ *                     |  logits  |
+ *                     +----------+
+ *
+ * Modified graph after insert slice:
+ *
+ *         +----------+            +----------+
+ *         |  Reshape |            | Constant |
+ *         +----------+            +----------+
+ *              |                       |
+ *         +----------+                 |
+ *         |  Slice   |                 |
+ *         +----------+                 |
+ *              |                       |
+ *              -----------    ----------
+ *                        |    |
+ *                        v    v
+ *                      +--------+
+ *                      | MatMul |
+ *                      +--------+
+ *                          |
+ *                          v
+ *                     +----------+
+ *                     |  logits  |
+ *                     +----------+
+*/
+
 class InsertSlice : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("InsertSlice", "0");
     explicit InsertSlice() {
-        auto label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>();
+        auto label = ov::pass::pattern::wrap_type<ov::op::v0::Result>();
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-            auto root = std::dynamic_pointer_cast<ov::op::v1::Reshape>(m.get_match_root());
+            auto root = std::dynamic_pointer_cast<ov::op::v0::Result>(m.get_match_root());
             if (!root) {
                 return false;
             }
-            ov::Output<ov::Node> root_output = m.get_match_value();
             std::string root_name = root->get_friendly_name();
-            // (TODO) Find more general way to set target node name
-            std::string target_node_name = "__module.transformer/aten::view/Reshape_9473"; // Qwen NNCF INT4
-            //std::string target_node_name = "__module.transformer/aten::view/Reshape_16926"; // Qwen GPTQ INT4 (Local)
-            //std::string target_node_name = "__module.transformer/aten::view/Reshape_17246"; // Qwen GPTQ INT4 (CI)
-            if ((root_name).find(target_node_name) != std::string::npos) {
-	              std::cout << "Find target node: " << target_node_name << std::endl;
-                std::set<ov::Input<ov::Node>> consumers = root_output.get_target_inputs();
-                std::vector<int32_t> starts_v = {0, -1, 0};
+            if (root->get_output_partial_shape(0).size() == 3){
+                std::cout << "Find target root node name: " << root_name << "\n";
+                auto parent = root->input_value(0).get_node_shared_ptr();
+                std::cout << "Find parent node name: " << parent->get_friendly_name() << "\n";
+                auto grand_parent = parent->input_value(0).get_node_shared_ptr();
+                std::cout << "Find grandparent node name: " << grand_parent->get_friendly_name() << "\n";
+                ov::Output<ov::Node> grand_parent_output = parent->get_input_source_output(0);
+                std::set<ov::Input<ov::Node>> consumers = grand_parent_output.get_target_inputs();
+                std::vector<int32_t> start_v = {0, -1, 0};
                 std::vector<int32_t> stop_v = {1, -2, 4096};
-                std::cout << "Reshape output shape:" << root_output.get_partial_shape() << std::endl;
+                std::vector<int32_t> step_v = {1, -1, 1};
+                std::cout << "Original reshape node output shape:" << grand_parent_output.get_partial_shape() << std::endl;
                 auto starts = ov::op::v0::Constant::create(ov::element::i32,
-                                                     ov::Shape{3},
-                                                     starts_v);
+                                                      ov::Shape{3},
+                                                      start_v);
                 auto stop = ov::op::v0::Constant::create(ov::element::i32,
-                                                     ov::Shape{3},
-                                                     stop_v);
+                                                      ov::Shape{3},
+                                                      stop_v);
                 auto step = ov::op::v0::Constant::create(ov::element::i32,
-                                                     ov::Shape{3},
-                                                     {1,-1,1});
-                auto slice = std::make_shared<ov::opset13::Slice>(root,starts,stop,step); //data, starts, ends, steps
-                std::cout << "slice output shape" << slice->output(0).get_partial_shape() <<std::endl;
+                                                      ov::Shape{3},
+                                                      step_v);
+                auto slice = std::make_shared<ov::opset13::Slice>(grand_parent,starts,stop,step); //data, starts, ends, steps
+                std::cout << "After insert slice node, output shape" << slice->output(0).get_partial_shape() <<std::endl;
                 for (auto consumer : consumers) {
                     consumer.replace_source_output(slice->output(0));
                 }
                 register_new_node(slice);
             }
+
             return true;
         };
         // Register pattern with Parameter operation as a pattern root node
@@ -235,7 +282,7 @@ int main(int argc, char **argv) {
         }
         model->reshape(shapes);
         // Modify model input type to algin with tokenizer outputs with PrePostProcessor
-        std::cout << "Modify model input & output KV cache element type from FP32 to FP16\n";
+        std::cout << "######## [Model Graph Optimization] Step 1: Modify model input & output KV cache element type from FP32 to FP16 ########\n";
         ov::preprocess::PrePostProcessor p3(model);
         p3.input("input_ids").tensor().set_element_type(ov::element::i32);  // cast to the type of tokenizer's output
         p3.input("attention_mask").tensor().set_element_type(ov::element::i32);
@@ -246,11 +293,13 @@ int main(int argc, char **argv) {
         }
     
         model = p3.build();
+
+        std::cout << "######## [Model Graph Optimization] Step 2: Insert slice node after reshape to reduce logits operation ########\n";
         ov::pass::Manager manager;
         manager.register_pass<InsertSlice>();
         manager.run_passes(model);
         std::string modifiled_file = std::regex_replace(args.model_path, std::regex("openvino_model"), "modified_openvino_model");
-        std::cout << "Save modified model in " << modifiled_file << "\n";
+        std::cout << "######## [Model Graph Optimization] Step 3: Save modified model in " << modifiled_file << " ########\n";
         ov::serialize(model, modifiled_file);
         // Compile modifiled model from disk to create model cache
         startTime = Time::now();
@@ -259,7 +308,7 @@ int main(int argc, char **argv) {
         std::cout << "Compile model and save model cache took: " << duration_ms << " ms" << std::endl;
         return 0;
     }
-    // Direct compile modifiled Qwen model with FP16 KV input & output
+    // Direct compile modifiled Qwen model with FP16 KV input & output + Reduced logits operations [1,1,151936]
     else {
         startTime = Time::now();
         ov::CompiledModel compiled_model = core.compile_model(args.model_path, args.device, device_config);
