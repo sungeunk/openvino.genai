@@ -375,6 +375,10 @@ int main(int argc, char **argv) {
                     ireq.get_tensor("beam_idx").set_shape({ BATCH_SIZE });
                     ireq.get_tensor("beam_idx").data<int32_t>()[0] = 0;
                 }
+		// Reset state
+		for (auto&& state: ireq.query_state()){
+		    state.reset();
+		}
             }
 
             std::cout << "Input token length: " << input_ids.size() << "\n";
