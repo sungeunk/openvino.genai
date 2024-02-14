@@ -152,6 +152,8 @@ struct Args
   std::string model_path = "openvino_model.xml";
   std::string tiktoken_path = "qwen.tiktoken";
   std::string prompt = "";
+  std::string cache_dir = "model_cache";
+  int prompt_index = -1;
   int max_length = 2048;
   int max_context_length = 256;
   std::string device = "CPU";
@@ -172,6 +174,8 @@ static auto usage(const std::string &prog) -> void
             << "  -m, --model PATH        model path (default: openvino_model.xml)\n"
             << "  -t, --tiktoken_path PATH    tokenizer path (default: qwen.tiktoken)\n"
             << "  -p, --prompt PROMPT     input prompt from user\n"
+            << "  -pi, --prompt_index N   input prompt index (default: -1)\n"
+            << "  -i, --interactive       run in interactive mode\n"
             << "  -ml, --max_length N      max total length including prompt and output (default: 2048)\n"
             << "  -mcl, --max_context_length N\n"
             << "                          max context length (default: 256)\n"
@@ -245,6 +249,14 @@ static auto parse_args(const std::vector<std::string> &argv) -> Args
     {
       args.verbose = true;
     }
+    else if (arg == "--cache_dir")
+    {
+      args.cache_dir = argv[++i];
+    }
+    else if (arg == "-pi" || arg == "--prompt_index")
+    {
+      args.prompt_index = std::stoi(argv[++i]);
+    }
     else
     {
       std::cerr << "Unknown argument: " << arg << std::endl;
@@ -299,7 +311,7 @@ int main(int argc, char **argv)
     ov::AnyMap device_config = {};
     if (args.device.find("CPU") != std::string::npos)
     {
-      device_config[ov::cache_dir.name()] = "llm-cache";
+      device_config[ov::cache_dir.name()] = args.cache_dir;
       device_config[ov::hint::scheduling_core_type.name()] = ov::hint::SchedulingCoreType::PCORE_ONLY;
       device_config[ov::hint::enable_hyper_threading.name()] = false;
       device_config[ov::hint::enable_cpu_pinning.name()] = true;
@@ -308,7 +320,7 @@ int main(int argc, char **argv)
 
     if (args.device.find("GPU") != std::string::npos)
     {
-      device_config[ov::cache_dir.name()] = "llm-cache";
+      device_config[ov::cache_dir.name()] = args.cache_dir;
       device_config[ov::intel_gpu::hint::queue_throttle.name()] = ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
       device_config[ov::intel_gpu::hint::queue_priority.name()] = ov::hint::Priority::MEDIUM;
       device_config[ov::intel_gpu::hint::host_task_priority.name()] = ov::hint::Priority::HIGH;
@@ -374,6 +386,7 @@ int main(int argc, char **argv)
       auto model_inputs = compiled_model.inputs();
       int32_t out_token;
       int sentence_num = 0;
+      std::vector<std::string> language_input;
       std::vector<std::string> sentences;
       if (!args.prompt.empty()){
         sentences = {args.prompt};
@@ -381,11 +394,17 @@ int main(int argc, char **argv)
       else {
         if (args.language.find("ch") != std::string::npos)
         {
-          sentences = chinese_sentences;
+          language_input = chinese_sentences;
         }
         else if (args.language.find("en") != std::string::npos)
         {
-          sentences = english_sentences;
+          language_input = english_sentences;
+        }
+        if (args.prompt_index == -1)
+          sentences = language_input;
+        else {
+          std::cout << "language_input.size: " << language_input.size() << ", prompt_index: " << args.prompt_index << std::endl;
+          sentences.push_back(language_input[args.prompt_index]);
         }
       }
 
