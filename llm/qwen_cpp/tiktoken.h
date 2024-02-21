@@ -136,7 +136,8 @@ class tiktoken {
 			for (const auto &[k, v] : encoder_) {
 				decoder_.emplace(v, k);
 			}
-			assert(encoder_.size() != decoder_.size() && "Encoder and decoder must be of equal length; maybe you had duplicate token indices in your encoder?");
+			// Fix windows debug build based on https://github.com/QwenLM/qwen.cpp/pull/40
+			assert(encoder_.size() == decoder_.size() && "Encoder and decoder must be of equal length; maybe you had duplicate token indices in your encoder?");
 
 			for (const auto &[k, v] : special_tokens_encoder) {
 				special_tokens_decoder.emplace(v, k);
@@ -170,7 +171,7 @@ class tiktoken {
 		) const -> std::pair<std::optional<std::string>, re2::StringPiece> {
 			if (special_regex_ == nullptr) return { std::nullopt, input };
 
-			auto start = input.begin();
+			auto start = input.data();
 			std::string special;
 			while (true) {
 				if (!re2::RE2::FindAndConsume(&input, *special_regex_, &special)) {
@@ -178,11 +179,12 @@ class tiktoken {
 				}
 
 				if (allowed_special.count(special) == 1) {
-					// Fix windows build based on https://github.com/QwenLM/qwen.cpp/issues/24
+					// Fix windows release build based on https://github.com/QwenLM/qwen.cpp/issues/24
+					// Fix windows debug build based on https://stackoverflow.com/questions/52469911/comparing-a-stdstring-view-and-a-substring-string-view/52471355#52471355
 					#ifdef _WIN32
-					    return { std::move(special), re2::StringPiece( start, start + ( input.begin() - start - special.size()) ) };
+					    return { std::move(special), re2::StringPiece( start, start + (input.data() - start - special.size()) ) };
 					#else
-					    return { std::move(special), re2::StringPiece(start, input.begin() - start - special.size()) };
+					    return { std::move(special), re2::StringPiece( start, input.data() - start - special.size()) };
 					#endif
 				}
 			}
