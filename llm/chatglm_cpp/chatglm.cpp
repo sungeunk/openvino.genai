@@ -78,8 +78,8 @@ static void usage(const std::string& prog) {
         << "  --repeat_penalty N      penalize repeat sequence of tokens (default: 1.0, 1.0 = disabled)\n"
         << "  --output_fixed_len N    set output fixed lenth (default: 0, output lenth is determined by the model)\n"
         << "  --print_inputs_info      print inputs id and token length (default: false)\n"
-        << "  --select_inputs         set input ids to run with comma separated list (ex: \"1,3,1,3\")\n";
-        << "  --cache_dir PATH        cache directory\n"
+        << "  --select_inputs         set input ids to run with comma separated list (ex: \"1,3,1,3\")\n"
+        << "  --cache_dir PATH        cache directory\n";
 }
 
 static Args parse_args(const std::vector<std::string>& argv) {
