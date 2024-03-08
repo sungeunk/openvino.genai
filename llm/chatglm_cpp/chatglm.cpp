@@ -59,6 +59,7 @@ struct Args {
     std::vector<int32_t> selected_inputs;
     bool print_inputs_info = false;
     std::string cache_dir = "model_cache";
+    bool skip_first = false;
 };
 
 static void usage(const std::string& prog) {
@@ -79,6 +80,7 @@ static void usage(const std::string& prog) {
         << "  --output_fixed_len N    set output fixed lenth (default: 0, output lenth is determined by the model)\n"
         << "  --print_inputs_info      print inputs id and token length (default: false)\n"
         << "  --select_inputs         set input ids to run with comma separated list (ex: \"1,3,1,3\")\n"
+        << "  --skip_first            skip first inference.\n"
         << "  --cache_dir PATH        cache directory\n";
 }
 
@@ -151,6 +153,9 @@ static Args parse_args(const std::vector<std::string>& argv) {
         }
         else if (arg == "--cache_dir") {
             args.cache_dir = argv[++i];
+        }
+        else if (arg == "--skip_first") {
+            args.skip_first = true;
         }
         else {
             std::cerr << "Unknown argument: " << arg << std::endl;
@@ -517,7 +522,8 @@ int main(int argc, char* argv[]) try {
         }
 
         startTime = Time::now();
-        ireq.infer();
+        if (!args.skip_first)
+            ireq.infer();
         duration_ms = get_duration_ms_until_now(startTime);
         std::cout << "First token took " << duration_ms << " ms" << std::endl;
         double first_time= duration_ms;
