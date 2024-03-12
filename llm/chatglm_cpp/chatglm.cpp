@@ -60,6 +60,7 @@ struct Args {
     bool print_inputs_info = false;
     std::string cache_dir = "model_cache";
     bool skip_first = false;
+    bool only_1_inf = false;
 };
 
 static void usage(const std::string& prog) {
@@ -81,6 +82,7 @@ static void usage(const std::string& prog) {
         << "  --print_inputs_info      print inputs id and token length (default: false)\n"
         << "  --select_inputs         set input ids to run with comma separated list (ex: \"1,3,1,3\")\n"
         << "  --skip_first            skip first inference.\n"
+        << "  --only_1_inf            for test. it will run 1st and 2nd inferencing once.\n"
         << "  --cache_dir PATH        cache directory\n";
 }
 
@@ -156,6 +158,9 @@ static Args parse_args(const std::vector<std::string>& argv) {
         }
         else if (arg == "--skip_first") {
             args.skip_first = true;
+        }
+        else if (arg == "--only_1_inf") {
+            args.only_1_inf = true;
         }
         else {
             std::cerr << "Unknown argument: " << arg << std::endl;
@@ -552,6 +557,11 @@ int main(int argc, char* argv[]) try {
             duration_ms = get_duration_ms_until_now(startTime);
             count += 1;
             total_time += duration_ms;
+
+            if (args.only_1_inf) {
+                std::cout << "Force exit by only_1_inf param for testing." << std::endl;
+                return 0;
+            }
 
             text_streamer.put(out_token);
             logits = ireq.get_tensor("logits").data<float>();
