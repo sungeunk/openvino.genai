@@ -161,6 +161,7 @@ struct Args
   bool stateful = false;
   int num_iteration = 1;
   bool force_max_generation = 0;
+  std::vector<int32_t> selected_inputs;
 };
 
 static auto usage(const std::string &prog) -> void
@@ -181,7 +182,8 @@ static auto usage(const std::string &prog) -> void
             << "  -s, --stateful STATEFUL specify whether to use stateful model, default use stateless model\n"
             << "  -n  --num_iteration     specify how many iteration used for text sentence, (default: 1)\n "
             << "  -f  --force_max_generation     force llm to generate to max_context_length, (default: 0)\n "
-            << "  -v, --verbose           display verbose output including config/system/performance info\n";
+            << "  -v, --verbose           display verbose output including config/system/performance info\n"
+            << "  --select_inputs         set input ids to run with comma separated list (ex: \"1,3,1,3\")\n";
 }
 
 static auto parse_args(const std::vector<std::string> &argv) -> Args
@@ -244,6 +246,27 @@ static auto parse_args(const std::vector<std::string> &argv) -> Args
     else if (arg == "-v" || arg == "--verbose")
     {
       args.verbose = true;
+    }
+    else if (arg == "--select_inputs") {
+        std::string inputs_str = argv[++i];
+        auto get_input_indices = [&]() {
+            std::vector<int> input_ids;
+            size_t pos_begin = 0;
+            size_t pos_end = 0;
+            while((pos_end = inputs_str.find(",", pos_begin)) != std::string::npos) {
+                std::string id_str = inputs_str.substr(pos_begin, (pos_end - pos_begin));
+                args.selected_inputs.push_back(std::stoi(id_str));
+                pos_begin = pos_end + 1;
+            }
+            std::string id_str = inputs_str.substr(pos_begin);
+            args.selected_inputs.push_back(std::stoi(id_str));
+        };
+        get_input_indices();
+        std::cout << "Selected input indices : " << std::endl;
+        for (auto i : args.selected_inputs) {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
     }
     else
     {
@@ -385,7 +408,12 @@ int main(int argc, char **argv)
         }
         else if (args.language.find("en") != std::string::npos)
         {
-          sentences = english_sentences;
+          if (args.selected_inputs.size() > 0)
+            for (int index : args.selected_inputs)
+              sentences.emplace_back(english_sentences[index]);
+          else {
+            sentences = english_sentences;
+          }
         }
       }
 
