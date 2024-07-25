@@ -3,6 +3,17 @@
 
 #include "openvino/genai/llm_pipeline.hpp"
 
+const std::string prompts[] =
+{
+    "Hello there! How are you doing?",
+    "What is OpenVINO?",
+    "Who are you?",
+    "Can you explain to me briefly what is Python programming language?",
+    "Explain the plot of Cinderella in a sentence.",
+    "What are some common mistakes to avoid when writing code?",
+    "Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“",
+};
+
 int main(int argc, char* argv[]) try {
     if (2 != argc) {
         throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR>");
@@ -10,7 +21,7 @@ int main(int argc, char* argv[]) try {
     std::string prompt;
     std::string model_path = argv[1];
 
-    std::string device = "CPU";  // GPU, NPU can be used as well
+    std::string device = "GPU";  // GPU, NPU can be used as well
     ov::genai::LLMPipeline pipe(model_path, device);
     
     ov::genai::GenerationConfig config;
@@ -23,11 +34,13 @@ int main(int argc, char* argv[]) try {
     };
 
     pipe.start_chat();
-    std::cout << "question:\n";
-    while (std::getline(std::cin, prompt)) {
+    for (std::string prompt : prompts) {
+        std::cout << "question:\n";
+        std::cout << prompt << std::endl;
+
         pipe.generate(prompt, config, streamer);
-        std::cout << "\n----------\n"
-            "question:\n";
+
+        std::cout << "\n----------\n";
     }
     pipe.finish_chat();
 } catch (const std::exception& error) {
