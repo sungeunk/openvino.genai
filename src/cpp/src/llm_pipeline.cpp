@@ -92,6 +92,7 @@ public:
     {
         ov::Core core;
         core.set_property(device, plugin_config);
+        std::cout << "Compiling the model to " << device << std::endl;
         m_model_runner = core.compile_model(model_path / "openvino_model.xml", device).create_infer_request();
 
         // If eos_token_id was not provided, take value
@@ -378,6 +379,7 @@ ov::genai::Tokenizer ov::genai::LLMPipeline::get_tokenizer() {
 }
 
 void ov::genai::LLMPipeline::start_chat(const std::string& system_message) {
+    std::cout << ov::get_openvino_version() << std::endl;
     m_pimpl->start_chat(system_message);
 }
 
