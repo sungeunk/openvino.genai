@@ -131,7 +131,8 @@ public:
 
                 m_history.push_back({{"role", "user"}, {"content", prompt}});
                 constexpr bool add_generation_prompt = true;
-                auto new_templated_chat_history  = m_tokenizer.apply_chat_template(m_history, add_generation_prompt);
+                std::string default_chat_template = "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = false %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 and system_message != false %}{% set content = '<<SYS>>\\n' + system_message + '\\n<</SYS>>\\n\\n' + message['content'] %}{% else %}{% set content = message['content'] %}{% endif %}{% if message['role'] == 'user' %}{{ bos_token + '[INST] ' + content + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' '  + content + ' ' + eos_token }}{% endif %}{% endfor %}";
+                auto new_templated_chat_history = m_tokenizer.apply_chat_template(m_history, add_generation_prompt, default_chat_template);
                 auto new_chat_tokens = m_tokenizer.encode(new_templated_chat_history);
                 if (m_is_cache_empty) {
                     encoded_input = new_chat_tokens;
