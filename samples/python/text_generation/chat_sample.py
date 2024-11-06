@@ -24,15 +24,24 @@ def main():
     config.max_new_tokens = 100
 
     chat_history = openvino_genai.ChatHistory()
-    while True:
-        try:
-            prompt = input('question:\n')
-        except EOFError:
-            break
+
+    # Predefined list of prompts
+    prompts = [
+        "Hello there! How are you doing?",
+        "What is OpenVINO?",
+        "Who are you?",
+        "Can you explain to me briefly what is Python programming language?",
+        "Explain the plot of Cinderella in a sentence.",
+        "What are some common mistakes to avoid when writing code?",
+        "Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“",
+    ]
+    for prompt in prompts:
+        print(f"question:\n{prompt}")
         chat_history.append({'role': 'user', 'content': prompt})
         decoded_results: openvino_genai.DecodedResults = pipe.generate(chat_history, config, streamer)
         output = decoded_results.texts[0]
         chat_history.append({'role': 'assistant', 'content': output})
+
         print('\n----------')
 
 
