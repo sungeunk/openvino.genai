@@ -23,12 +23,21 @@ def main():
     config = openvino_genai.GenerationConfig()
     config.max_new_tokens = 100
 
+    # Predefined list of prompts
+    prompts = [
+        "Hello there! How are you doing?",
+        "What is OpenVINO?",
+        "Who are you?",
+        "Can you explain to me briefly what is Python programming language?",
+        "Explain the plot of Cinderella in a sentence.",
+        "What are some common mistakes to avoid when writing code?",
+        "Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“",
+    ]
+
     pipe.start_chat()
-    while True:
-        try:
-            prompt = input('question:\n')
-        except EOFError:
-            break
+
+    for prompt in prompts:
+        print(f"question:\n{prompt}")
         pipe.generate(prompt, config, streamer)
         print('\n----------')
     pipe.finish_chat()
