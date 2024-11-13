@@ -180,9 +180,9 @@ def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list,
         if result_md5_list != prev_md5:
             log.warning(f"[{num}] Prompt[{prompt_index}]'s md5 {result_md5_list} "
                         f"is different from md5 of the {num - 1} iteration {prev_md5}")
-            metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0], prompt_idx=prompt_index)
+            metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0].replace(input_text, '[[[INPUT-HERE]]]'), prompt_idx=prompt_index)
     else:
-        metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0], prompt_idx=prompt_index)
+        metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0].replace(input_text, '[[[INPUT-HERE]]]'), prompt_idx=prompt_index)
     if bench_hook is not None:
         bench_hook.clear_time_list()
         bench_hook.clear_time_infer_list()
@@ -346,9 +346,9 @@ def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data
         if result_md5_list != prev_md5:
             log.warning(f"[{num}] Prompt[{prompt_index}]'s md5 {result_md5_list} "
                         f"is different from md5 of the {num - 1} iteration {prev_md5}")
-            metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0], prompt_idx=prompt_index)
+            metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0].replace(input_text, '[[[INPUT-HERE]]]'), prompt_idx=prompt_index)
     else:
-        metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0], prompt_idx=prompt_index)
+        metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0].replace(input_text, '[[[INPUT-HERE]]]'), prompt_idx=prompt_index)
 
 
 def run_text_generation_genai_with_stream(input_text, num, model, tokenizer, args, iter_data_list, md5_list,
@@ -476,9 +476,9 @@ def run_text_generation_genai_with_stream(input_text, num, model, tokenizer, arg
         if result_md5_list != prev_md5:
             log.warning(f"[{num}] Prompt[{prompt_index}]'s md5 {result_md5_list} "
                         f"is different from md5 of the {num - 1} iteration {prev_md5}")
-            metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0], prompt_idx=prompt_index)
+            metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0].replace(input_text, '[[[INPUT-HERE]]]'), prompt_idx=prompt_index)
     else:
-        metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0], prompt_idx=prompt_index)
+        metrics_print.print_generated(num, warm_up=(num == 0), generated=generated_text[0].replace(input_text, '[[[INPUT-HERE]]]'), prompt_idx=prompt_index)
     streamer.reset()
 
 
