@@ -12,7 +12,7 @@ def save_text_to_file(input_text, text_file_name, args):
     else:
         out_path = '.'
     save_path = out_path + os.sep + text_file_name
-    input_text_file = open(save_path, 'w')
+    input_text_file = open(save_path, 'w', encoding='utf-8')
     input_text_file.write(input_text)
     input_text_file.close()
 
