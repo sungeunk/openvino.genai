@@ -72,7 +72,9 @@ def run_visual_language_generation_optimum(
     mem_consumption.start(num)
     max_gen_tokens = DEFAULT_OUTPUT_TOKEN_SIZE if args['infer_count'] is None else args['infer_count']
     additional_args = model_utils.setup_gen_config_use_custom_args()
-    log.info("%s[P%s] Text generation start: %s", prefix, prompt_index, datetime.datetime.now().isoformat())
+    log.info("%s[P%s] Text generation start: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
+    # Anchored next to `start` so derived token timestamps line up with the reported latencies.
+    generation_start_timestamp = datetime.datetime.now(datetime.timezone.utc)
     start = time.perf_counter()
     if args['infer_count'] is not None and args['end_token_stopping'] is False:
         model.generation_config.eos_token_id = None
@@ -96,7 +98,7 @@ def run_visual_language_generation_optimum(
             **additional_args
         )
     end = time.perf_counter()
-    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, datetime.datetime.now().isoformat())
+    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
     generation_time = end - start
     memory_metrics = mem_consumption.iter_stop_and_collect_data(num)
 
@@ -140,6 +142,12 @@ def run_visual_language_generation_optimum(
         [log.debug('[{}]{:.4f}'.format(idx, tm)) for idx, tm in enumerate(tm_infer_list)]
         if args['num_beams'] == 1 and generated_token_size != len(tm_infer_list):
             log.warning(f'Output token size({generated_token_size}) is not equal to infer count({len(tm_infer_list)})')
+    # tm_list entries are in seconds.
+    token_timestamps = gen_output_data.gen_token_timestamps(
+        generation_start_timestamp,
+        tm_list[0] * 1000 if len(tm_list) > 0 else None,
+        tm_list[1] * 1000 if len(tm_list) > 1 else None,
+    )
     iter_data = gen_output_data.gen_iterate_data(
         iter_idx=num,
         in_size=input_token_size * args['batch_size'],
@@ -150,6 +158,7 @@ def run_visual_language_generation_optimum(
         res_md5=result_md5_list,
         prompt_idx=prompt_index,
         tokenization_time=(tok_encode_time, tok_decode_time),
+        token_timestamps=token_timestamps,
         mm_embeddings_preparation_time=tm_mm_embeddings,
         **memory_metrics,
     )
@@ -213,11 +222,13 @@ def run_visual_language_generation_genai(
     if audios:
         kwargs["audios"] = audios
 
-    log.info("%s[P%s] Text generation start: %s", prefix, prompt_index, datetime.datetime.now().isoformat())
+    log.info("%s[P%s] Text generation start: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
+    # Anchored next to `start` so derived token timestamps line up with the reported latencies.
+    generation_start_timestamp = datetime.datetime.now(datetime.timezone.utc)
     start = time.perf_counter()
     generation_result = model.generate(prompts[0], generation_config=gen_config, **kwargs)
     end = time.perf_counter()
-    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, datetime.datetime.now().isoformat())
+    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
     generation_time = end - start
     generated_text = generation_result.texts
     perf_metrics = generation_result.perf_metrics
@@ -240,13 +251,18 @@ def run_visual_language_generation_genai(
         per_token_time = generation_time * 1000 / (generated_text_len / args['batch_size'])
     else:
         log.warning("No generated tokens")
-    first_token_time = (perf_metrics.get_ttft().mean - perf_metrics.raw_metrics.tokenization_durations[-1] / 1000)
-    second_tokens_durations = (
+    first_token_latency_ms = (perf_metrics.get_ttft().mean - perf_metrics.raw_metrics.tokenization_durations[-1] / 1000)
+    second_token_latencies_ms = (
         np.array(perf_metrics.raw_metrics.m_new_token_times[1:])
         - np.array(perf_metrics.raw_metrics.m_new_token_times[:-1])
     ).tolist()
 
-    tm_list = np.array([first_token_time] + second_tokens_durations) / 1000
+    tm_list = np.array([first_token_latency_ms] + second_token_latencies_ms) / 1000
+    token_timestamps = gen_output_data.gen_token_timestamps(
+        generation_start_timestamp,
+        first_token_latency_ms,
+        second_token_latencies_ms[0] if second_token_latencies_ms else None,
+    )
     log.debug('latency of all tokens:')
     [log.debug('[{}]{:.4f}'.format(idx, tm)) for idx, tm in enumerate(tm_list)]
     tokenization_time = (
@@ -263,6 +279,7 @@ def run_visual_language_generation_genai(
         res_md5=result_md5_list,
         prompt_idx=prompt_index,
         tokenization_time=tokenization_time,
+        token_timestamps=token_timestamps,
         mm_embeddings_preparation_time=perf_metrics.get_prepare_embeddings_duration().mean,
         **memory_metrics,
     )
@@ -324,11 +341,11 @@ def run_visual_language_generation_benchmark(
                 if num == 0:
                     prefix = f'[warm-up][P{p_idx}] Input text: {input_text}'
                     metrics_print.print_unicode(prefix, max_output=metrics_print.MAX_INPUT_TXT_IN_LOG)
-                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 gen_fn(
                     input_text, num, model, processor, args, iter_data_list, md5_list,
                     p_idx, bench_hook, model_precision, proc_id, mem_consumption)
-                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = f"[warm-up][P{p_idx}]" if num == 0 else f"[{num}][P{p_idx}]"
                 log.info(f"{prefix} start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
     else:
@@ -339,11 +356,11 @@ def run_visual_language_generation_benchmark(
                 if num == 0:
                     prefix = f'[warm-up][P{p_idx}] Input text: {input_text}'
                     metrics_print.print_unicode(prefix, max_output=metrics_print.MAX_INPUT_TXT_IN_LOG)
-                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 gen_fn(
                     input_text, num, model, processor, args, iter_data_list, md5_list,
                     prompt_idx_list[idx], bench_hook, model_precision, proc_id, mem_consumption)
-                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = f"[warm-up][P{p_idx}]" if num == 0 else f"[{num}][P{p_idx}]"
                 log.info(f"{prefix} start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
 

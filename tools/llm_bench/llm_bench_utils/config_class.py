@@ -2,6 +2,7 @@
 # Copyright (C) 2023-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from transformers import AutoTokenizer
+from typing import Any
 from transformers import (
     AutoModelForCausalLM,
     AutoProcessor,
@@ -13,7 +14,11 @@ from transformers import (
     SpeechT5HifiGan,
     AutoModelForSequenceClassification
 )
-from diffusers.pipelines import DiffusionPipeline, LDMSuperResolutionPipeline, LTXPipeline
+from diffusers.pipelines import DiffusionPipeline, LDMSuperResolutionPipeline
+try:
+    from diffusers.pipelines import LTXPipeline
+except ImportError:
+    LTXPipeline = None
 from optimum.intel.openvino import (
     OVModelForCausalLM,
     OVModelForSeq2SeqLM,
@@ -25,9 +30,11 @@ from optimum.intel.openvino import (
     OVModelForFeatureExtraction,
     OVModelForTextToSpeechSeq2Seq,
     OVModelForSequenceClassification,
-    OVLTXPipeline,
 )
-
+try:
+    from optimum.intel.openvino import OVLTXPipeline
+except ImportError:
+    OVLTXPipeline = None
 try:
     from optimum.intel.openvino import OVModelForMultimodalLM
 except ImportError:
@@ -62,8 +69,8 @@ class UseCaseImageGen(UseCase):
 @dataclass
 class UseCaseVideoGen(UseCase):
     task = "video_gen"
-    ov_cls: type | None = OVLTXPipeline
-    pt_cls: type | None = LTXPipeline
+    ov_cls: type | None = OVLTXPipeline if OVLTXPipeline is not None else Any
+    pt_cls: type | None = LTXPipeline if LTXPipeline is not None else Any
 
 
 @dataclass

@@ -48,6 +48,7 @@ def write_result(report_file, model, framework, device, model_args, iter_data_li
 
         input_idx = chat_idx if chat_idx != "" else prompt_idx
         timestamp_start, timestamp_end = get_timestamp(iter_data["iteration"], input_idx, iter_timestamp)
+        token_timestamps = iter_data.get("token_timestamps", {})
 
         if first_token_infer_latency:
             first_token_infer_latency = round(first_token_infer_latency, 5)
@@ -79,6 +80,9 @@ def write_result(report_file, model, framework, device, model_args, iter_data_li
             "start": timestamp_start,
             "end": timestamp_end,
         }
+
+        if token_timestamps:
+            res_data["token_timestamps"] = token_timestamps
 
         if max_rss_mem:
             res_data["max_rss_mem"] = round(max_rss_mem, 5)
