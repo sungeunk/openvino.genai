@@ -234,9 +234,9 @@ def launch(
     bench_hook: object | None,
 ) -> dict:
     pipeline.mem_consumption_meter.update_marker(f"step-{iter_num}-{prompt_idx}")
-    iter_timestamp[iter_num][prompt_idx]["start"] = datetime.datetime.now().isoformat()
+    iter_timestamp[iter_num][prompt_idx]["start"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     iter_data, _ = pipeline.run(input_item, iter_num, prompt_idx, proc_id, bench_hook)
-    iter_timestamp[iter_num][prompt_idx]["end"] = datetime.datetime.now().isoformat()
+    iter_timestamp[iter_num][prompt_idx]["end"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     prefix = "[warm-up]" if iter_num == 0 else "[{}]".format(iter_num)
     log.info(
         f"{prefix}[P{prompt_idx}] start: {iter_timestamp[iter_num][prompt_idx]['start']}, end: {iter_timestamp[iter_num][prompt_idx]['end']}"

@@ -195,7 +195,7 @@ class OptimumVLMGenerationChatAdapter(OptimumTextGenerationChatAdapter):
             additional_kwargs["tokenizer"] = self.tokenizer
 
         # ===== Generation =====
-        log.info("%s Text generation start: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation start: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
         start = time.perf_counter()
         result = self.model.generate(
             **preprocess_inputs,
@@ -208,7 +208,7 @@ class OptimumVLMGenerationChatAdapter(OptimumTextGenerationChatAdapter):
             **additional_kwargs,
         )
         end = time.perf_counter()
-        log.info("%s Text generation end: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation end: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
         generation_time = end - start
 
         if isinstance(result, tuple) and isinstance(result[0], list) and isinstance(result[0][0], str):
@@ -341,11 +341,11 @@ class GenAIVLMGenerationChatAdapter(GenAITextGenerationChatAdapter):
             kwargs["audios"] = audios
 
         # ===== Generation =====
-        log.info("%s Text generation start: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation start: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
         start = time.perf_counter()
         generation_result = self.model.generate(self.chat_history, generation_config=self.gen_config, **kwargs)
         end = time.perf_counter()
-        log.info("%s Text generation end: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation end: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
         generation_time = end - start
 
         self.chat_history.append({"role": "assistant", "content": generation_result.texts[0]})
@@ -565,7 +565,7 @@ def run_visual_language_generation_benchmark(model_path, framework, device, args
                         f"[warm-up][{iter_alias}{chat_idx}] Unable print input text",
                         max_output=metrics_print.MAX_INPUT_TXT_IN_LOG,
                     )
-                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 run_visual_language_generation_chat_common(
                     pipeline,
                     chat_turns,
@@ -579,7 +579,7 @@ def run_visual_language_generation_benchmark(model_path, framework, device, args
                     proc_id,
                     mem_consumption,
                 )
-                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = f"[warm-up][{iter_alias}{chat_idx}]" if num == 0 else f"[{num}][{iter_alias}{chat_idx}]"
                 log.info(
                     f"{prefix} start: {iter_timestamp[num][chat_idx]['start']}, end: {iter_timestamp[num][chat_idx]['end']}"
@@ -595,7 +595,7 @@ def run_visual_language_generation_benchmark(model_path, framework, device, args
                         f"[warm-up][{iter_alias}{chat_idx}] Unable print input text",
                         max_output=metrics_print.MAX_INPUT_TXT_IN_LOG,
                     )
-                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 run_visual_language_generation_chat_common(
                     pipeline,
                     chat_turns,
@@ -609,7 +609,7 @@ def run_visual_language_generation_benchmark(model_path, framework, device, args
                     proc_id,
                     mem_consumption,
                 )
-                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = f"[warm-up][{iter_alias}{chat_idx}]" if num == 0 else f"[{num}][{iter_alias}{chat_idx}]"
                 log.info(
                     f"{prefix} start: {iter_timestamp[num][chat_idx]['start']}, end: {iter_timestamp[num][chat_idx]['end']}"

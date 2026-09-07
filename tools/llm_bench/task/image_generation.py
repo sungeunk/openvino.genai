@@ -233,9 +233,9 @@ def run_image_generation_benchmark(model_path, framework, device, args, num_iter
             for image_id, image_param in enumerate(image_list):
                 p_idx = prompt_idx_list[image_id]
                 mem_consumption.update_marker(f"step-{num}-{p_idx}")
-                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 image_gen_fn(image_param, num, prompt_idx_list[image_id], pipe, args, iter_data_list, proc_id, mem_consumption, callback)
-                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = '[warm-up]' if num == 0 else '[{}]'.format(num)
                 log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
     else:
@@ -243,9 +243,9 @@ def run_image_generation_benchmark(model_path, framework, device, args, num_iter
             p_idx = prompt_idx_list[image_id]
             for num in range(num_iters + 1):
                 mem_consumption.update_marker(f"step-{num}-{image_id}")
-                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 image_gen_fn(image_param, num, p_idx, pipe, args, iter_data_list, proc_id, mem_consumption)
-                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = '[warm-up]' if num == 0 else '[{}]'.format(num)
                 log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
 

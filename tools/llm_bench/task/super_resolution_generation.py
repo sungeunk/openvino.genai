@@ -98,9 +98,9 @@ def run_ldm_super_resolution_benchmark(model_path, framework, device, args, num_
                 if args["output_dir"] is not None:
                     llm_bench_utils.output_file.output_image_input_text(str(img['prompt']), args, p_idx, None, proc_id)
             log.info(f"[{'warm-up' if num == 0 else num}][P{p_idx}] Input image={img['prompt']}")
-            iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
+            iter_timestamp[num][p_idx]['start'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             run_ldm_super_resolution(img, num, pipe, args, framework, iter_data_list, prompt_idx_list[image_id], tm_list, proc_id, mem_consumption)
-            iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+            iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             tm_list.clear()
             prefix = '[warm-up]' if num == 0 else '[{}]'.format(num)
             log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")

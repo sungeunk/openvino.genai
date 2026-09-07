@@ -495,10 +495,10 @@ def run_text_2_speech_benchmark(model_path, framework, device, args, num_iters, 
                 if num == 0:
                     metrics_print.print_unicode(f'[warm-up][P{p_idx}] Input text: {input_text}', f'[warm-up][P{p_idx}] Unable print input text',
                                                 max_output=metrics_print.MAX_INPUT_TXT_IN_LOG)
-                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 gen_fn(input_text, num, model, processor, vocoder, args, iter_data_list, md5_list,
                        p_idx, tts_hook, model_precision, proc_id, mem_consumption)
-                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = '[warm-up]' if num == 0 else '[{}]'.format(num)
                 log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
     else:
@@ -509,10 +509,10 @@ def run_text_2_speech_benchmark(model_path, framework, device, args, num_iters, 
                 if num == 0:
                     metrics_print.print_unicode(f'[warm-up][P{p_idx}] Input text: {input_text}', f'[warm-up][P{p_idx}] Unable print input text',
                                                 max_output=metrics_print.MAX_INPUT_TXT_IN_LOG)
-                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['start'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 gen_fn(input_text, num, model, processor, vocoder, args, iter_data_list, md5_list,
                        prompt_idx_list[idx], tts_hook, model_precision, proc_id, mem_consumption)
-                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 prefix = '[warm-up]' if num == 0 else '[{}]'.format(num)
                 log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
 

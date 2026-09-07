@@ -262,7 +262,7 @@ class OptimumTextGenerationChatAdapter(ChatGenerationAdapter):
                 self.generation_args["past_key_values"] = [None]
 
         # ===== Generation =====
-        log.info("%s Text generation start: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation start: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
         start = time.perf_counter()
         result = self.model.generate(
             **tokenized_chat,
@@ -274,7 +274,7 @@ class OptimumTextGenerationChatAdapter(ChatGenerationAdapter):
             **self.generation_args,
         )
         end = time.perf_counter()
-        log.info("%s Text generation end: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation end: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
 
         generation_time = end - start
         input_token_size = full_input_ids[0].numel()
@@ -432,7 +432,7 @@ class GenAITextGenerationChatAdapter(ChatGenerationAdapter):
         self.chat_history.append({"role": "user", "content": prompt})
 
         # ===== Generation =====
-        log.info("%s Text generation start: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation start: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
         start = time.perf_counter()
         decoded_results = self.model.generate(
             self.chat_history,
@@ -441,7 +441,7 @@ class GenAITextGenerationChatAdapter(ChatGenerationAdapter):
             **self.adapters_args,
         )
         end = time.perf_counter()
-        log.info("%s Text generation end: %s", prefix, datetime.datetime.now().isoformat())
+        log.info("%s Text generation end: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
         generation_time = end - start
         self.chat_history.append({"role": "assistant", "content": decoded_results.texts[0]})
 
@@ -635,7 +635,7 @@ def run_text_generation_benchmark(
                         f"[warm-up][{iter_alias}{chat_idx}] Unable print input text",
                         max_output=metrics_print.MAX_INPUT_TXT_IN_LOG,
                     )
-                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 run_text_generation_chat_common(
                     pipeline,
                     input_text,
@@ -650,7 +650,7 @@ def run_text_generation_benchmark(
                     mem_consumption,
                     prefix,
                 )
-                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 log.info(
                     f"{prefix} start: {iter_timestamp[num][chat_idx]['start']}, end: {iter_timestamp[num][chat_idx]['end']}"
                 )
@@ -667,7 +667,7 @@ def run_text_generation_benchmark(
                         f"[warm-up][{iter_alias}{chat_idx}] Unable print input text",
                         max_output=metrics_print.MAX_INPUT_TXT_IN_LOG,
                     )
-                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["start"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 run_text_generation_chat_common(
                     pipeline,
                     input_text,
@@ -682,7 +682,7 @@ def run_text_generation_benchmark(
                     mem_consumption,
                     prefix,
                 )
-                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now().isoformat()
+                iter_timestamp[num][chat_idx]["end"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 log.info(
                     f"{prefix} start: {iter_timestamp[num][chat_idx]['start']}, end: {iter_timestamp[num][chat_idx]['end']}"
                 )

@@ -252,9 +252,9 @@ def run_speech_2_txt_benchmark(model_path, framework, device, args, num_iters, m
             input_param["speech_param"] = speech_param
             input_param["iter_idx"] = num
             input_param["raw_speech"] = raw_speech
-            iter_timestamp[num][p_idx]["start"] = datetime.datetime.now().isoformat()
+            iter_timestamp[num][p_idx]["start"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             run_speech_2_txt_generation(input_param, args, md5_list, iter_data_list)
-            iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
+            iter_timestamp[num][p_idx]['end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             prefix = '[warm-up]' if num == 0 else '[{}]'.format(num)
             log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
     metrics_print.print_average(iter_data_list, speech_idx_list, 1, True)

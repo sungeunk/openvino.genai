@@ -433,9 +433,9 @@ def launch(pipeline: CommonPipeline, iter_num: int, prompt_idx: int, iter_timest
         metrics_print.print_unicode(
             f"[warm-up][P{prompt_idx}] Input query: {input_text}\n Input texts: {pipeline.texts}", f"[warm-up][P{prompt_idx}] Unable print input text"
         )
-    iter_timestamp[iter_num][prompt_idx]["start"] = datetime.datetime.now().isoformat()
+    iter_timestamp[iter_num][prompt_idx]["start"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     iter_data, _ = pipeline.run(input_text, iter_num, prompt_idx, proc_id, bench_hook)
-    iter_timestamp[iter_num][prompt_idx]["end"] = datetime.datetime.now().isoformat()
+    iter_timestamp[iter_num][prompt_idx]["end"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     prefix = "[warm-up]" if iter_num == 0 else "[{}]".format(iter_num)
     log.info(f"{prefix}[P{prompt_idx}] start: {iter_timestamp[iter_num][prompt_idx]['start']}, end: {iter_timestamp[iter_num][prompt_idx]['end']}")
 
