@@ -2,7 +2,6 @@
 # Copyright (C) 2023-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from transformers import AutoTokenizer
-from typing import Any
 from transformers import (
     AutoModelForCausalLM,
     AutoProcessor,
@@ -69,8 +68,10 @@ class UseCaseImageGen(UseCase):
 @dataclass
 class UseCaseVideoGen(UseCase):
     task = "video_gen"
-    ov_cls: type | None = OVLTXPipeline if OVLTXPipeline is not None else Any
-    pt_cls: type | None = LTXPipeline if LTXPipeline is not None else Any
+    # None when the installed diffusers / optimum-intel predate LTX support;
+    # create_video_gen_model turns that into a message naming the dependency.
+    ov_cls: type | None = OVLTXPipeline
+    pt_cls: type | None = LTXPipeline
 
 
 @dataclass

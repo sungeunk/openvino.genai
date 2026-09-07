@@ -930,7 +930,7 @@ def create_image_text_gen_model(model_path, device, memory_data_collector, **kwa
                 return create_genai_image_text_gen_model(model_path, device, ov_config, memory_data_collector, **kwargs)
             except Exception as exp:
                 raise RuntimeError(
-                    "OpenVINO GenAI pipeline loading failed. "
+                    f"OpenVINO GenAI pipeline loading failed for {model_path}. "
                     f"Error: {exp}"
                 )
 
@@ -1535,6 +1535,11 @@ def create_video_gen_model(model_path, device, memory_data_collector, **kwargs):
             log.info("Selected OpenVINO GenAI for benchmarking")
             return create_genai_video_gen_model(model_path, device, ov_config, memory_data_collector, **kwargs)
 
+        if model_class is None:
+            raise RuntimeError(
+                "Optimum Intel video generation needs OVLTXPipeline, which the installed "
+                "optimum-intel does not provide."
+            )
         if kwargs.get("mem_consumption"):
             memory_data_collector.start()
         log.info("Selected Optimum Intel for benchmarking")

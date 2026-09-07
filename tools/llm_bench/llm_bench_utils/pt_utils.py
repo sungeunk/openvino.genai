@@ -603,6 +603,11 @@ def create_video_gen_model(model_path, device, memory_data_collector, **kwargs):
         if model_path.is_dir() and len(os.listdir(model_path)) != 0:
             log.info(f"Load image model from model path:{model_path}")
             model_class = kwargs["use_case"].pt_cls
+            if model_class is None:
+                raise RuntimeError(
+                    "PyTorch video generation needs diffusers.LTXPipeline, which the "
+                    "installed diffusers does not provide."
+                )
             if kwargs.get("mem_consumption"):
                 memory_data_collector.start()
             start = time.perf_counter()
