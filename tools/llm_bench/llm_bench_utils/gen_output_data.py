@@ -4,27 +4,36 @@
 import datetime
 
 
-def gen_token_timestamps(generation_start, first_token_latency_ms, second_token_latency_ms=None):
-    """Reconstruct first/second token boundaries from the generation start time and token latencies.
+def gen_token_timestamps(generate_begin, first_token_latency_ms, generate_end=None):
+    """Mark where the first token ends inside a generate() call, as wall-clock stamps.
 
-    The boundaries are derived from averaged latency metrics rather than captured at the token
-    events themselves, so they are only precise enough to align a run against wall-clock data
-    such as machine monitoring samples. With batching or speculative decoding the latencies are
-    per-token averages, which widens that gap further.
+    Three points, two spans: [generate_begin, first_token_end] is the first token and
+    [first_token_end, generate_end] is the decode that follows. The two bounds are measured;
+    only the split is derived, from the reported first token latency, because the C++ token
+    timestamps use a steady clock whose epoch cannot be mapped onto wall time.
 
-    `generation_start` must be timezone-aware so the result can be compared with other UTC data.
+    The split is dropped unless it lands inside the measured window. A latency reported in
+    the wrong unit, or a mean over a batch that does not describe a single token event, would
+    otherwise name a span that never ran — and a consumer cutting monitoring samples by it
+    has no way to notice. Losing the split costs the phase breakdown; keeping a bad one
+    would silently attribute the wrong machine state to the first token.
+
+    A single token is much shorter than a monitoring sampling interval, so the decode span
+    deliberately covers every token after the first rather than just the second.
+
+    Both bounds must be timezone-aware so the result can be compared with other UTC data.
     """
-    if generation_start is None or first_token_latency_ms is None or first_token_latency_ms <= 0:
+    if generate_begin is None or generate_end is None or generate_end <= generate_begin:
         return {}
-    first_token_end = generation_start + datetime.timedelta(milliseconds=float(first_token_latency_ms))
     token_timestamps = {
-        "first_token_begin": generation_start.isoformat(),
-        "first_token_end": first_token_end.isoformat(),
+        "generate_begin": generate_begin.isoformat(),
+        "generate_end": generate_end.isoformat(),
     }
-    if second_token_latency_ms is not None and second_token_latency_ms > 0:
-        second_token_end = first_token_end + datetime.timedelta(milliseconds=float(second_token_latency_ms))
-        token_timestamps["second_token_begin"] = first_token_end.isoformat()
-        token_timestamps["second_token_end"] = second_token_end.isoformat()
+    if first_token_latency_ms is None or first_token_latency_ms <= 0:
+        return token_timestamps
+    first_token_end = generate_begin + datetime.timedelta(milliseconds=float(first_token_latency_ms))
+    if first_token_end < generate_end:
+        token_timestamps["first_token_end"] = first_token_end.isoformat()
     return token_timestamps
 
 

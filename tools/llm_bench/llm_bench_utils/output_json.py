@@ -32,6 +32,7 @@ def write_result(report_file, model, framework, device, model_args, iter_data_li
         # optional metrics
         tokenization_time = iter_data.get("tokenization_time")
         detokenization_time = iter_data.get("detokenization_time")
+        mm_embeddings_preparation_time = iter_data.get("mm_embeddings_preparation_time")
         max_rss_mem = iter_data.get("max_rss_mem_consumption")
         max_sys_mem = iter_data.get("max_sys_mem_consumption")
         rss_mem_increase = iter_data.get("max_rss_mem_increase")
@@ -84,6 +85,11 @@ def write_result(report_file, model, framework, device, model_args, iter_data_li
         if token_timestamps:
             res_data["token_timestamps"] = token_timestamps
 
+        # Milliseconds, matching the logged "Multimodal Embeddings Preparation Time"; absent for
+        # text-only models.
+        if isinstance(mm_embeddings_preparation_time, (int, float)) and mm_embeddings_preparation_time > 0:
+            res_data["mm_embeddings_preparation_time"] = round(mm_embeddings_preparation_time, 5)
+
         if max_rss_mem:
             res_data["max_rss_mem"] = round(max_rss_mem, 5)
         if max_sys_mem:
@@ -127,6 +133,10 @@ def write_result(report_file, model, framework, device, model_args, iter_data_li
     output_result = {'metadata': metadata,
                      'perfdata': {'compile_time': pretrain_time,
                                   'results': result} | get_pre_gen_memory_data(memory_data_collector)}
+    # Wall-clock bounds of the compile that compile_time only measures the length of.
+    compile_window = iter_timestamp.get('compile')
+    if compile_window:
+        output_result['perfdata']['compile_window'] = compile_window
     if len(results_averaged) > 0:
         output_result['perfdata']['results_averaged'] = results_averaged
 

@@ -356,6 +356,12 @@ def get_model_precision(model_name_list):
     return '' if model_precision == 'unknown' else model_precision
 
 
+# Sits alongside the integer iteration keys in iter_timestamp: model compilation is the
+# one window that precedes every iteration, and that dict is what already carries
+# wall-clock boundaries to the report.
+COMPILE_KEY = 'compile'
+
+
 def init_timestamp(num_iters, prompt_list, prompt_idx_list):
     iter_timestamp = {}
     for num in range(num_iters + 1):
@@ -364,6 +370,11 @@ def init_timestamp(num_iters, prompt_list, prompt_idx_list):
             p_idx = prompt_idx_list[idx]
             iter_timestamp[num][p_idx] = {}
     return iter_timestamp
+
+
+def compile_window(begin, end) -> dict:
+    """Wall-clock bounds of model load + compile, for iter_timestamp[COMPILE_KEY]."""
+    return {'begin': begin.isoformat(), 'end': end.isoformat()}
 
 
 def resolve_media_file_path(file_path, prompt_file_path):

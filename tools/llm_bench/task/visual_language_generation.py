@@ -74,7 +74,7 @@ def run_visual_language_generation_optimum(
     additional_args = model_utils.setup_gen_config_use_custom_args()
     log.info("%s[P%s] Text generation start: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
     # Anchored next to `start` so derived token timestamps line up with the reported latencies.
-    generation_start_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    generate_begin_timestamp = datetime.datetime.now(datetime.timezone.utc)
     start = time.perf_counter()
     if args['infer_count'] is not None and args['end_token_stopping'] is False:
         model.generation_config.eos_token_id = None
@@ -98,7 +98,8 @@ def run_visual_language_generation_optimum(
             **additional_args
         )
     end = time.perf_counter()
-    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
+    generate_end_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, generate_end_timestamp.isoformat())
     generation_time = end - start
     memory_metrics = mem_consumption.iter_stop_and_collect_data(num)
 
@@ -134,7 +135,8 @@ def run_visual_language_generation_optimum(
         tm_list = bench_hook.get_time_list()
         mm_embeddings_list = bench_hook.get_mm_embeddings_time_list()
         # Models with per-modality embedding helpers (e.g. Qwen3-Omni) leave this list empty.
-        tm_mm_embeddings = np.mean(mm_embeddings_list) * 1000 * 1000 if mm_embeddings_list else ""
+        # The hook records perf_counter deltas, i.e. seconds; the report expects milliseconds.
+        tm_mm_embeddings = np.mean(mm_embeddings_list) * 1000 if mm_embeddings_list else ""
         log.debug('latency of all tokens:')
         [log.debug('[{}]{:.4f}'.format(idx, tm)) for idx, tm in enumerate(tm_list)]
         tm_infer_list = bench_hook.get_time_infer_list()
@@ -144,9 +146,9 @@ def run_visual_language_generation_optimum(
             log.warning(f'Output token size({generated_token_size}) is not equal to infer count({len(tm_infer_list)})')
     # tm_list entries are in seconds.
     token_timestamps = gen_output_data.gen_token_timestamps(
-        generation_start_timestamp,
+        generate_begin_timestamp,
         tm_list[0] * 1000 if len(tm_list) > 0 else None,
-        tm_list[1] * 1000 if len(tm_list) > 1 else None,
+        generate_end_timestamp,
     )
     iter_data = gen_output_data.gen_iterate_data(
         iter_idx=num,
@@ -224,11 +226,12 @@ def run_visual_language_generation_genai(
 
     log.info("%s[P%s] Text generation start: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
     # Anchored next to `start` so derived token timestamps line up with the reported latencies.
-    generation_start_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    generate_begin_timestamp = datetime.datetime.now(datetime.timezone.utc)
     start = time.perf_counter()
     generation_result = model.generate(prompts[0], generation_config=gen_config, **kwargs)
     end = time.perf_counter()
-    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, datetime.datetime.now(datetime.timezone.utc).isoformat())
+    generate_end_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    log.info("%s[P%s] Text generation end: %s", prefix, prompt_index, generate_end_timestamp.isoformat())
     generation_time = end - start
     generated_text = generation_result.texts
     perf_metrics = generation_result.perf_metrics
@@ -258,10 +261,12 @@ def run_visual_language_generation_genai(
     ).tolist()
 
     tm_list = np.array([first_token_latency_ms] + second_token_latencies_ms) / 1000
+    # Raw TTFT, not the tokenization-adjusted latency above: the span is anchored to the call
+    # site, so it has to cover the same work the text-generation path reports.
     token_timestamps = gen_output_data.gen_token_timestamps(
-        generation_start_timestamp,
-        first_token_latency_ms,
-        second_token_latencies_ms[0] if second_token_latencies_ms else None,
+        generate_begin_timestamp,
+        perf_metrics.get_ttft().mean,
+        generate_end_timestamp,
     )
     log.debug('latency of all tokens:')
     [log.debug('[{}]{:.4f}'.format(idx, tm)) for idx, tm in enumerate(tm_list)]
@@ -304,7 +309,9 @@ def run_visual_language_generation_benchmark(
     model_path, framework, device, args, num_iters, mem_consumption, input_list=None
 ):
     mem_consumption.update_marker("model")
+    compile_begin = datetime.datetime.now(datetime.timezone.utc)
     outs = FW_UTILS[framework].create_image_text_gen_model(model_path, device, mem_consumption, **args)
+    compile_end = datetime.datetime.now(datetime.timezone.utc)
     model, processor, pretrain_time, bench_hook, use_genai = outs
     model_precision = model_utils.get_model_precision(model_path.parts)
     iter_data_list = []
@@ -333,6 +340,7 @@ def run_visual_language_generation_benchmark(
     proc_id = os.getpid()
     mem_consumption.activate_cooldown("after model compilation")
     iter_timestamp = model_utils.init_timestamp(num_iters, image_text_list, prompt_idx_list)
+    iter_timestamp[model_utils.COMPILE_KEY] = model_utils.compile_window(compile_begin, compile_end)
     if args['subsequent'] is False:
         for num in range(num_iters + 1):
             for idx, input_text in enumerate(image_text_list):

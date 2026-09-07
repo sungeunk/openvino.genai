@@ -256,7 +256,7 @@ def run_text_generation(
     mem_consumption.start(num)
     log.info("%s Text generation start: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
     # Anchored next to `start` so derived token timestamps line up with the reported latencies.
-    generation_start_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    generate_begin_timestamp = datetime.datetime.now(datetime.timezone.utc)
     start = time.perf_counter()
     result = model.generate(
         **input_data,
@@ -267,7 +267,8 @@ def run_text_generation(
         **additional_args,
     )
     end = time.perf_counter()
-    log.info("%s Text generation end: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
+    generate_end_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    log.info("%s Text generation end: %s", prefix, generate_end_timestamp.isoformat())
     generation_time = end - start
     memory_metrics = mem_consumption.iter_stop_and_collect_data(num)
 
@@ -314,9 +315,9 @@ def run_text_generation(
             log.warning(f'Output token size({generated_token_size}) is not equal to infer count({len(tm_infer_list)})')
     # tm_list entries are in seconds.
     token_timestamps = gen_output_data.gen_token_timestamps(
-        generation_start_timestamp,
+        generate_begin_timestamp,
         tm_list[0] * 1000 if len(tm_list) > 0 else None,
-        tm_list[1] * 1000 if len(tm_list) > 1 else None,
+        generate_end_timestamp,
     )
     iter_data = gen_output_data.gen_iterate_data(
         iter_idx=num,
@@ -361,6 +362,8 @@ def genai_generate(streaming, model, tokens_len, gen_config, empty_lora, input_d
 
     text_print_streamer = None
     printer_thread = None
+    # Set up outside the timed region: starting the printer thread is display
+    # work, and counting it made streaming runs incomparable with the rest.
     if streaming:
         text_print_streamer = get_genai_chunk_streamer()(model.get_tokenizer(), tokens_len)
 
@@ -373,7 +376,7 @@ def genai_generate(streaming, model, tokens_len, gen_config, empty_lora, input_d
 
     log.info("%s Text generation start: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
     # Anchored next to `start` so derived token timestamps line up with the reported latencies.
-    generation_start_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    generate_begin_timestamp = datetime.datetime.now(datetime.timezone.utc)
     start = time.perf_counter()
     if streaming:
         if (empty_lora and (gen_config.adapters is not None)):
@@ -396,8 +399,8 @@ def genai_generate(streaming, model, tokens_len, gen_config, empty_lora, input_d
         else:
             generation_result = model.generate(input_data, gen_config)
     end = time.perf_counter()
-    generation_end_timestamp = datetime.datetime.now(datetime.timezone.utc)
-    log.info("%s Text generation end: %s", prefix, generation_end_timestamp.isoformat())
+    generate_end_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    log.info("%s Text generation end: %s", prefix, generate_end_timestamp.isoformat())
     generated_tokens = []
     if cb_pipeline:
         for res in generation_result:
@@ -407,7 +410,7 @@ def genai_generate(streaming, model, tokens_len, gen_config, empty_lora, input_d
         generated_tokens = np.array(generation_result.tokens)
 
     perf_metrics = generation_result[0].perf_metrics if cb_pipeline else generation_result.perf_metrics
-    return generated_tokens, perf_metrics, end - start, generation_start_timestamp
+    return generated_tokens, perf_metrics, end - start, generate_begin_timestamp, generate_end_timestamp
 
 
 # ===== GenAI Utils =====
@@ -543,7 +546,7 @@ def run_text_generation_genai(
 
     # ===== Generate =====
     mem_consumption.start(num)
-    generated_tokens, perf_metrics, generation_time, generation_start_timestamp = genai_generate(
+    generated_tokens, perf_metrics, generation_time, generate_begin_timestamp, generate_end_timestamp = genai_generate(
         streaming, model, tokens_len, gen_config, args["empty_lora"], input_data, args["batch_size"], prefix
     )
     memory_metrics = mem_consumption.iter_stop_and_collect_data(num)
@@ -586,9 +589,9 @@ def run_text_generation_genai(
     second_token_latencies_ms = (np.array(perf_metrics.raw_metrics.m_durations) / 1000).tolist()
     tm_list = (np.array([first_token_latency_ms] + second_token_latencies_ms) / 1000).tolist()
     token_timestamps = gen_output_data.gen_token_timestamps(
-        generation_start_timestamp,
+        generate_begin_timestamp,
         first_token_latency_ms,
-        second_token_latencies_ms[0] if second_token_latencies_ms else None,
+        generate_end_timestamp,
     )
     inference_durations = (np.array(perf_metrics.raw_metrics.token_infer_durations) / 1000 / 1000).tolist()
     log.debug('latency of all tokens:')
@@ -686,11 +689,12 @@ def run_text_generation_genai_with_stream(
     mem_consumption.start(num)
     log.info("%s Text generation start: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
     # Anchored next to `start` so derived token timestamps line up with the reported latencies.
-    generation_start_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    generate_begin_timestamp = datetime.datetime.now(datetime.timezone.utc)
     start = time.perf_counter()
     generated_tokens = model.generate(input_data, gen_config, streamer=streamer).tokens
     end = time.perf_counter()
-    log.info("%s Text generation end: %s", prefix, datetime.datetime.now(datetime.timezone.utc).isoformat())
+    generate_end_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    log.info("%s Text generation end: %s", prefix, generate_end_timestamp.isoformat())
     generation_time = end - start
     memory_metrics = mem_consumption.iter_stop_and_collect_data(num)
 
@@ -730,9 +734,9 @@ def run_text_generation_genai_with_stream(
 
     # tm_list entries are in seconds.
     token_timestamps = gen_output_data.gen_token_timestamps(
-        generation_start_timestamp,
+        generate_begin_timestamp,
         tm_list[0] * 1000 if len(tm_list) > 0 else None,
-        tm_list[1] * 1000 if len(tm_list) > 1 else None,
+        generate_end_timestamp,
     )
     iter_data = gen_output_data.gen_iterate_data(
         iter_idx=num,
@@ -766,7 +770,9 @@ def run_text_generation_genai_with_stream(
 
 def run_text_generation_benchmark(model_path, framework, device, tokens_len, streaming, args, num_iters, mem_consumption):
     mem_consumption.update_marker("model")
+    compile_begin = datetime.datetime.now(datetime.timezone.utc)
     model, tokenizer, pretrain_time, bench_hook, use_genai = FW_UTILS[framework].create_text_gen_model(model_path, device, mem_consumption, **args)
+    compile_end = datetime.datetime.now(datetime.timezone.utc)
     model_precision = model_utils.get_model_precision(model_path.parts)
     iter_data_list = []
     md5_list = {num : {} for num in range(num_iters + 1)}
@@ -797,6 +803,7 @@ def run_text_generation_benchmark(model_path, framework, device, tokens_len, str
     proc_id = os.getpid()
     mem_consumption.activate_cooldown("after model compilation")
     iter_timestamp = model_utils.init_timestamp(num_iters, text_list, prompt_idx_list)
+    iter_timestamp[model_utils.COMPILE_KEY] = model_utils.compile_window(compile_begin, compile_end)
     if args['subsequent'] is False:
         for num in range(num_iters + 1):
             for idx, input_text in enumerate(text_list):
